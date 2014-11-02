@@ -13,22 +13,26 @@ ifeq ($(RTOS_ROOT),)
 $(error "RTOS_ROOT undefined!")
 endif
 
+# Define the architecture and build type:
+RTOS_BUILD_VARIANT := CORTEX_M3_DEBUG
+ARCH := cortex-m3
+DEBUG := yes # yes/no
+OPTIMIZE := no # yes/no
+
+# Define the toolchain to use:
+RTOS_TOOLCHAIN := codesourcery/arm-2010q1
+
 # Toolchain setup:
 include $(RTOS_ROOT)/build/build.mk
-
 # Miscellaneous build support:
 include $(RTOS_ROOT)/build/misc.mk
-
 # Make rules common to many components:
 include $(RTOS_ROOT)/build/rules.mk
 
-# RTOS build tools common to all configurations:
-BUILD_TOOLS_DIR := $(RTOS_ROOT)/build/tools
-
 # Static path setup to kernel components:
-KERNEL_ARCH_DIR := $(RTOS_ROOT)/kernel/$(ARCH)
-KERNEL_INCLUDE_DIRS := $(RTOS_ROOT)/kernel/include
+KERNEL_ARCH_DIR := $(RTOS_ROOT)/$(ARCH)
+KERNEL_INCLUDE_DIRS := $(RTOS_ROOT)/include
 KERNEL_ARCH_INCLUDE_DIRS := $(KERNEL_ARCH_DIR)/include
-KERNEL_OBJ_ROOT := $(RTOS_ROOT)/kernel/obj
+KERNEL_OBJ_ROOT := $(RTOS_ROOT)/obj
 KERNEL_OBJ_DIR := $(KERNEL_OBJ_ROOT)/$(RTOS_BUILD_VARIANT)
-KERNEL_LIB_DIR := $(RTOS_ROOT)/kernel/lib
+KERNEL_LIB_DIR := $(RTOS_ROOT)/lib
