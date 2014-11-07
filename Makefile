@@ -34,6 +34,13 @@ SUBCOMP_DIRS := portable $(KERNEL_ARCH_DIR)
 # LIBRARIES points out the built kernel library.
 LIBRARIES := $(KERNEL_LIB_DIR)/libkernel.a
 
+# Include files to install.
+INCLUDES := $(foreach inc, kernel.h rtos_types.h, include/$(inc))
+
+# Place to install kernel stuff.
+LIB_INSTALL_PATH := $(KERNEL_INSTALL_ROOT)/lib/$(RTOS_BUILD_VARIANT)
+INCLUDE_INSTALL_PATH := $(KERNEL_INSTALL_ROOT)/include
+
 ###############################################################################
 # Rules
 ###############################################################################
@@ -50,6 +57,16 @@ $(LIBRARIES): $(KERNEL_LIB_DIR)
 		make -C $$subcomp_dir all; \
 	done
 	$(AR) $(ARFLAGS) $@ $(KERNEL_OBJ_DIR)/*
+
+.PHONY:	install
+install:	$(LIBRARIES)
+	install -d $(LIB_INSTALL_PATH) $(INCLUDE_INSTALL_PATH)
+	for lib in $(LIBRARIES); do \
+		install -m 644 $$lib $(LIB_INSTALL_PATH); \
+	done
+	for inc in $(INCLUDES); do \
+		install -m 644 $$inc $(INCLUDE_INSTALL_PATH); \
+	done
 
 .PHONY:	clean
 clean:
