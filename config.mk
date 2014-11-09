@@ -7,11 +7,8 @@
 #
 ###############################################################################
 
-# The RTOS_ROOT environment variable must be set when building the RTOS
-# components. This file must be in the $RTOS_ROOT directory.
-ifeq ($(RTOS_ROOT),)
-$(error "RTOS_ROOT undefined!")
-endif
+# Find out RTOS_ROOT:
+RTOS_ROOT := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
 # Define the architecture and build type:
 RTOS_BUILD_VARIANT := CORTEX_M3_DEBUG
