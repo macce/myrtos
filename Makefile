@@ -38,8 +38,8 @@ LIBRARIES := $(KERNEL_LIB_DIR)/libkernel.a
 INCLUDES := $(foreach inc, kernel.h rtos_types.h, include/$(inc))
 
 # Place to install kernel stuff.
-LIB_INSTALL_PATH := $(KERNEL_INSTALL_ROOT)/lib/$(RTOS_BUILD_VARIANT)
-INCLUDE_INSTALL_PATH := $(KERNEL_INSTALL_ROOT)/include
+LIB_INSTALL_PATH := $(SYSTEM_ROOT)/kernel/lib
+INCLUDE_INSTALL_PATH := $(SYSTEM_ROOT)/kernel/include
 
 ###############################################################################
 # Rules
