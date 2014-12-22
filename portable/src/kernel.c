@@ -23,6 +23,8 @@
  * Defines, Constants, Typedefs and Structs
  *****************************************************************************/
 
+#define kernel_assert(expr) do { if (!(expr)) assertion_failed(); } while (0)
+
 /* The buffer header consists of a magic number and a next-pointer. */
 #define BUFFER_HEADER_SIZE 8
 #define BUFFER_HEADER_MAGIC 0x11223344
@@ -46,6 +48,9 @@ typedef struct BufferTrailer
 /******************************************************************************
  * Local Function Prototypes
  *****************************************************************************/
+
+/* assertion_failed - Called if an assertion failed. Loops forever. */
+static void assertion_failed(void);
 
 /* rtosint_yield - Called from syscall to handle the 'yield' syscall. The
    current process is sorted into the ready-list and one of the highest-
@@ -112,6 +117,32 @@ static rtos_u32 current_tick = 0;
 /*****************************************************************************
  * Function Implementations
  *****************************************************************************/
+
+static void assertion_failed(void)
+{
+  while (1);
+}
+
+static void list_failed(void)
+{
+  while (1);
+}
+
+static void test_list(PCB *list)
+{
+  int depth = 0;
+  while (list) {
+    list = list->next;
+    depth++;
+    if (depth > 4) list_failed();
+  }
+}
+
+static void test_lists(void)
+{
+  test_list(ready_pcbs);
+  test_list(delay_pcbs);
+}
 
 static void rtosint_yield()
 {
@@ -264,6 +295,8 @@ static void rtosint_tick()
    PCB *ready_pcb = 0;
    int do_schedule = 0;
 
+   test_lists();
+
    /* TODO: Handle timeout wrap-around problem below.
       Move appropriate processes from the delay list to the ready list. */
 
@@ -271,6 +304,12 @@ static void rtosint_tick()
       section. */
    INTERRUPT_DISABLE;
    current_tick++;
+
+   kernel_assert(delay_pcbs->next != delay_pcbs);
+
+   int nbr_delay_pcbs = 0;
+   PCB *iter = delay_pcbs;
+   for (;iter != 0 && nbr_delay_pcbs < 10;iter = iter->next,nbr_delay_pcbs++);
 
    while (delay_pcbs != 0 && delay_pcbs->delay_until <= current_tick)
    {
@@ -285,8 +324,8 @@ static void rtosint_tick()
       readylist_insert_pcb(ready_pcb);
       if (ready_pcb->priority < current_pcb->priority)
       {
-	 readylist_insert_pcb(current_pcb);
-	 do_schedule = 1;
+        kernel_assert(current_pcb->next != current_pcb);
+        do_schedule = 1;
       }
 
       /* Enter critical section for next list manipulation. */
@@ -297,22 +336,30 @@ static void rtosint_tick()
 
    if (do_schedule)
    {
-      /* Schedule a context switch to take place after all active exceptions.
-	 TODO: 'arch_trigger_pendsv' should have a better name, as it is a
-	 Cortex-M3 exception name. */
-      arch_trigger_pendsv();
+     readylist_insert_pcb(current_pcb);
+
+     /* Schedule a context switch to take place after all active exceptions.
+        TODO: 'arch_trigger_pendsv' should have a better name, as it is a
+        Cortex-M3 exception name. */
+     arch_trigger_pendsv();
    }
+
+   test_lists();
 }
 
 
 static void rtosint_delay(rtos_u32 nbr_ticks)
 {
+   test_lists();
+#if 1
    delaylist_insert_pcb(current_pcb, nbr_ticks);
 
    /* Schedule a context switch to take place after all active exceptions.
       TODO: 'arch_trigger_pendsv' should have a better name, as it is a
       Cortex-M3 exception name. */
    arch_trigger_pendsv();
+#endif
+   test_lists();
 }
 
 
@@ -369,38 +416,47 @@ static rtos_u32 rtosint_current_pid()
 static void readylist_insert_pcb(PCB *pcb)
 {
    INTERRUPT_DISABLE;
+   test_lists();
+
    pcb->process_state = PROCESS_STATE_READY;
    if (ready_pcbs == 0)
    {
       pcb->next = 0;
       ready_pcbs = pcb;
+      test_lists();
    }
    else if (ready_pcbs->priority > pcb->priority)
    {
       /* First PCB has lower priority than pcb. */
       pcb->next = ready_pcbs;
       ready_pcbs = pcb;
+      kernel_assert(pcb->next != pcb);
+      test_lists();
    }
    else if (ready_pcbs->priority <= pcb->priority &&
 	    ready_pcbs->next != 0)
    {
       /* First PCB has same or higher prio and is not alone. */
       PCB *iter = ready_pcbs;
-      
+
       /* Check next PCBs in a loop. */
       while (iter->next != 0 && iter->next->priority <= pcb->priority)
       {
-	 iter = iter->next;
+        kernel_assert(iter->next != iter);
+        iter = iter->next;
       }
       if (iter->next == 0)
       {
 	 pcb->next = 0;
 	 iter->next = pcb;
+         test_lists();
       }
       else
       {
 	 pcb->next = iter->next;
 	 iter->next = pcb;
+         kernel_assert(pcb->next != pcb);
+         test_lists();
       }
    }
    else if (ready_pcbs->next == 0)
@@ -409,6 +465,8 @@ static void readylist_insert_pcb(PCB *pcb)
       pcb->next = 0;
       ready_pcbs->next = pcb;
    }
+   test_lists();
+
    INTERRUPT_ENABLE;
 }
 
@@ -425,6 +483,7 @@ static void readylist_insert_pcb(PCB *pcb)
  */
 static void receivelist_insert_pcb(PCB *pcb)
 {
+   test_lists();
    if (receive_pcbs == 0)
    {
       pcb->next = 0;
@@ -441,7 +500,7 @@ static void receivelist_insert_pcb(PCB *pcb)
    {
       /* First PCB has same or higher prio and is not alone. */
       PCB *iter = receive_pcbs;
-      
+
       /* Check next PCBs in a loop. */
       while (iter->next != 0 && iter->next->priority <= pcb->priority)
       {
@@ -466,6 +525,7 @@ static void receivelist_insert_pcb(PCB *pcb)
       pcb->next = 0;
       receive_pcbs->next = pcb;
    }
+   test_lists();
 }
 
 /****************************************************************************** 
@@ -481,6 +541,7 @@ static void receivelist_insert_pcb(PCB *pcb)
 static void delaylist_insert_pcb(PCB *pcb, rtos_u32 nbr_ticks)
 {
    INTERRUPT_DISABLE;
+   test_lists();
    pcb->delay_until = current_tick + nbr_ticks;
    pcb->process_state = PROCESS_STATE_DELAY;
    if (delay_pcbs == 0)
@@ -491,9 +552,10 @@ static void delaylist_insert_pcb(PCB *pcb, rtos_u32 nbr_ticks)
    }
    else if (delay_pcbs->delay_until > pcb->delay_until)
    {
-      /* First PCB has longer timeout. */
-      pcb->next = delay_pcbs;
-      delay_pcbs = pcb;
+     /* First PCB has longer timeout. */
+     pcb->next = delay_pcbs;
+     delay_pcbs = pcb;
+     kernel_assert(delay_pcbs->next != delay_pcbs);
    }
    else if (delay_pcbs->next != 0)
    {
@@ -508,6 +570,7 @@ static void delaylist_insert_pcb(PCB *pcb, rtos_u32 nbr_ticks)
 
       pcb->next = iter->next;
       iter->next = pcb;
+      kernel_assert(pcb->next != pcb);
    }
    else
    {
@@ -515,6 +578,7 @@ static void delaylist_insert_pcb(PCB *pcb, rtos_u32 nbr_ticks)
       pcb->next = 0;
       delay_pcbs->next = pcb;
    }
+   test_lists();
    INTERRUPT_ENABLE;
 }
 
