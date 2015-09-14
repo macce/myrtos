@@ -134,7 +134,7 @@ static void test_list(PCB *list)
   while (list) {
     list = list->next;
     depth++;
-    if (depth > 4) list_failed();
+    if (depth > 16) list_failed();
   }
 }
 
@@ -190,12 +190,12 @@ static rtos_address rtosint_alloc(rtos_u32 wanted_size)
       buffer = kernel_alloc_permanent(BUFFER_HEADER_SIZE + actual_size
                                       + BUFFER_TRAILER_SIZE, 4);
       INTERRUPT_ENABLE;
-      
+
       ((BufferHeader *)buffer)->magic = BUFFER_HEADER_MAGIC;
       ((BufferHeader *)buffer)->next = 0;
       ((BufferTrailer *)(buffer + BUFFER_HEADER_SIZE + actual_size))->magic =
 	 BUFFER_TRAILER_MAGIC;
-      
+
       buffer += BUFFER_HEADER_SIZE;
    }
    return buffer;
@@ -247,7 +247,7 @@ static void rtosint_send(rtos_address buffer_address, rtos_u32 dest_pid,
 	 in RECEIVE, it must be lower than or equal than current process
 	 (otherwise it would be running now), so we should not switch to it. */
       BufferHeader *dest_inbox_iter = dest_pcb->inbox[dest_inbox];
-      
+
       while (dest_inbox_iter->next != 0)
       {
 	 dest_inbox_iter = dest_inbox_iter->next;
@@ -285,7 +285,7 @@ static rtos_address rtosint_receive(rtos_u32 inbox)
 static void rtosint_dispose(rtos_address buffer_address)
 {
    BufferHeader *buffer_header = ((BufferHeader *)(buffer_address - BUFFER_HEADER_SIZE));
-   
+
    buffer_header->next = available_list;
    available_list = buffer_header;
 }
@@ -380,7 +380,7 @@ static void rtosint_wait_psem()
 static void rtosint_signal_psem(rtos_u32 pid)
 {
    PCB *signal_pcb = pid_pcb_map[pid];
-   
+
    if (signal_pcb->process_state == PROCESS_STATE_PSEM)
    {
       signal_pcb->process_state = PROCESS_STATE_READY;
@@ -405,7 +405,7 @@ static rtos_u32 rtosint_current_pid()
    return current_pcb->pid;
 }
 
-/****************************************************************************** 
+/******************************************************************************
  * Function: readylist_insert_pcb
  *
  * Called to put the supplied PCB in the readylist. The PCB is sorted into the
@@ -471,7 +471,7 @@ static void readylist_insert_pcb(PCB *pcb)
 }
 
 
-/****************************************************************************** 
+/******************************************************************************
  * Function: receivelist_insert_pcb
  *
  * Called to put the supplied PCB in the receivelist. The PCB is sorted into the
@@ -528,7 +528,7 @@ static void receivelist_insert_pcb(PCB *pcb)
    test_lists();
 }
 
-/****************************************************************************** 
+/******************************************************************************
  * Function: delaylist_insert_pcb
  *
  * Called to put the supplied PCB in the delaylist. The PCB is sorted into the
@@ -583,7 +583,7 @@ static void delaylist_insert_pcb(PCB *pcb, rtos_u32 nbr_ticks)
 }
 
 
-/****************************************************************************** 
+/******************************************************************************
  * Function: kernel_alloc_permanent
  *
  * Permanently allocates memory with the specified size and alignment.
@@ -594,21 +594,21 @@ static void delaylist_insert_pcb(PCB *pcb, rtos_u32 nbr_ticks)
 static rtos_address kernel_alloc_permanent(rtos_u32 size, rtos_u8 alignment)
 {
    rtos_address data_block = 0;
-   
+
    /* Move permanent_data_ptr up to the next correctly aligned address. */
    if ((permanent_data_ptr & (alignment - 1)) != 0)
    {
       permanent_data_ptr += alignment;
       permanent_data_ptr &= ~(alignment - 1);
    }
-   
+
    data_block = permanent_data_ptr;
    permanent_data_ptr += size;
 
    return data_block;
 }
 
-/****************************************************************************** 
+/******************************************************************************
  * Function:  rtos_context_switch_hook
  *
  * Called to do administration before context switch.
@@ -623,7 +623,7 @@ void rtos_reschedule_hook()
 }
 
 
-/****************************************************************************** 
+/******************************************************************************
  * Function:   rtos_init
  *
  * Called from boot code, after BSS and DATA have been initialized.
@@ -671,7 +671,7 @@ void rtos_init()
  * In this section are functions that are called from the application during
  * the execution of different hooks. These functions perform tasks such as
  * creating processes, configuring kernel signal handling etc.
- * 
+ *
  *****************************************************************************/
 
 
